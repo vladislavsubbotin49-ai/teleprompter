@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0a">
+<title>Суфлёр · Prompter</title>
+<style>
+  :root{
+    --ink:#f2f0ea;
+    --bg:#0a0a0a;
+    --panel:#141414;
+    --panel-2:#1d1d1d;
+    --line:#2a2a2a;
+    --muted:#8a877e;
+    --accent:#e8b04b;      /* amber — reads like a warm reading light */
+    --accent-dim:#5a4a24;
+    --cam:#161616;
+    --safe: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink)}
+  body{
+    font-family:'Georgia',serif;
+    display:flex;flex-direction:column;
+    touch-action:manipulation;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+  /* ---------- SETUP SCREEN ---------- */
+  #setup{
+    position:absolute;inset:0;z-index:40;
+    background:var(--bg);
+    display:flex;flex-direction:column;
+    overflow:auto;
+  }
+  .wrap{max-width:820px;margin:0 auto;width:100%;padding:28px 22px calc(40px + var(--safe))}
+  .brand{display:flex;align-items:baseline;gap:14px;margin-bottom:4px}
+  .brand h1{
+    font-family:'Georgia',serif;font-weight:400;font-size:clamp(30px,7vw,46px);
+    letter-spacing:-.5px;margin:0;line-height:1;
+  }
+  .brand .en{font-size:clamp(13px,3.4vw,16px);color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif}
+  .lead{color:var(--muted);font-size:15px;line-height:1.55;margin:12px 0 26px;max-width:60ch;font-family:'Helvetica Neue',Arial,sans-serif}
+
+  .field{margin-bottom:22px}
+  .flabel{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--muted);margin-bottom:9px;
+  }
+  textarea{
+    width:100%;min-height:190px;resize:vertical;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--ink);font-family:'Georgia',serif;font-size:17px;line-height:1.6;
+    padding:16px;outline:none;
+  }
+  textarea:focus{border-color:var(--accent-dim)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:520px){.grid{grid-template-columns:1fr}}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;
+    font-family:'Helvetica Neue',Arial,sans-serif;
+  }
+  .card h3{margin:0 0 6px;font-size:14px;font-weight:600;letter-spacing:.3px}
+  .card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+
+  .modechoose{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px}
+  @media(max-width:520px){.modechoose{grid-template-columns:1fr}}
+  .mode{
+    text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px;transition:border-color .15s, background .15s;font-family:'Helvetica Neue',Arial,sans-serif;
+  }
+  .mode.active{border-color:var(--accent);background:var(--panel-2)}
+  .mode .dot{width:9px;height:9px;border-radius:50%;background:var(--line);display:inline-block;margin-right:8px;vertical-align:middle}
+  .mode.active .dot{background:var(--accent)}
+  .mode h3{display:inline;font-size:14.5px;font-weight:600}
+  .mode p{margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+
+  .controls-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:2px}
+  @media(max-width:520px){.controls-row{grid-template-columns:1fr}}
+  .slider-block{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-family:'Helvetica Neue',Arial,sans-serif}
+  .slider-block .top{display:flex;justify-content:space-between;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+  .slider-block .val{color:var(--accent);font-weight:600}
+  input[type=range]{width:100%;-webkit-appearance:none;height:3px;background:var(--line);border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:var(--accent);cursor:pointer}
+
+  .toggles{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
+  .toggle{
+    font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:9px 15px;color:var(--muted);transition:.15s;
+  }
+  .toggle.on{border-color:var(--accent);color:var(--ink)}
+  .toggle.on::before{content:"✓ "}
+
+  .start{
+    margin-top:26px;width:100%;
+    background:var(--accent);color:#1a1400;
+    font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:17px;letter-spacing:.4px;
+    padding:18px;border-radius:12px;transition:filter .15s;
+  }
+  .start:hover{filter:brightness(1.06)}
+  .langswitch{position:absolute;top:20px;right:20px;z-index:41;display:flex;gap:6px}
+  .langswitch button{
+    font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;letter-spacing:1px;
+    padding:7px 12px;border-radius:8px;border:1px solid var(--line);color:var(--muted);background:var(--panel)
+  }
+  .langswitch button.on{border-color:var(--accent);color:var(--accent)}
+
+  .hint{font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6}
+  .hint kbd{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-family:monospace;font-size:11px;color:var(--ink)}
+
+  /* ---------- PROMPTER SCREEN ---------- */
+  #stage{position:absolute;inset:0;z-index:10;display:none;background:#000}
+  #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000}
+  #video.mirror{transform:scaleX(-1)}
+  #scrim{position:absolute;inset:0;background:rgba(0,0,0,.42);display:none}
+  #scrim.on{display:block}
+
+  #scrollArea{
+    position:absolute;inset:0;overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12%,#000 78%,transparent 100%);
+    mask-image:linear-gradient(to bottom,transparent 0,#000 12%,#000 78%,transparent 100%);
+  }
+  #script{
+    padding:60vh 8vw;
+    font-size:48px;line-height:1.5;font-weight:400;
+    color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.75);
+    white-space:pre-wrap;word-wrap:break-word;
+    will-change:transform;
+  }
+  #script.mirror{transform:scaleX(-1)}
+  #script.flip{transform:scaleY(-1)}
+  #script.mirror.flip{transform:scale(-1,-1)}
+
+  /* reading guide line */
+  #guide{
+    position:absolute;left:0;right:0;top:34%;height:0;
+    border-top:1px solid rgba(232,176,75,.5);
+    box-shadow:0 0 0 100vmax rgba(0,0,0,0);pointer-events:none;display:none;
+  }
+  #guide.on{display:block}
+  #guide::before,#guide::after{
+    content:"";position:absolute;top:-6px;border:6px solid transparent;
+  }
+  #guide::before{left:0;border-left-color:var(--accent)}
+  #guide::after{right:0;border-right-color:var(--accent)}
+
+  /* control bar */
+  #bar{
+    position:absolute;left:0;right:0;bottom:0;z-index:20;
+    padding:12px 14px calc(12px + var(--safe));
+    background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,.55) 70%,transparent);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;
+    transition:opacity .3s;font-family:'Helvetica Neue',Arial,sans-serif;
+  }
+  #bar.hidden{opacity:0;pointer-events:none}
+  .cbtn{
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+    border-radius:10px;padding:11px 14px;font-size:13px;color:var(--ink);
+    display:flex;align-items:center;gap:6px;min-height:44px;
+  }
+  .cbtn:active{background:rgba(255,255,255,.18)}
+  .cbtn.primary{background:var(--accent);color:#1a1400;border-color:var(--accent);font-weight:700}
+  .cbtn.wide{min-width:118px;justify-content:center}
+  .cbtn svg{width:16px;height:16px;fill:currentColor}
+  .stepper{display:flex;align-items:center;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden}
+  .stepper button{padding:11px 13px;font-size:16px;min-height:44px;color:var(--ink)}
+  .stepper button:active{background:rgba(255,255,255,.18)}
+  .stepper .lab{font-size:11px;color:var(--muted);padding:0 8px;letter-spacing:.5px;min-width:70px;text-align:center;text-transform:uppercase}
+
+  #tapzone{position:absolute;inset:0 0 90px 0;z-index:15}
+
+  #topbar{
+    position:absolute;top:0;left:0;right:0;z-index:20;
+    padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;
+    display:flex;justify-content:space-between;align-items:center;
+    background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent);
+    transition:opacity .3s;font-family:'Helvetica Neue',Arial,sans-serif;
+  }
+  #topbar.hidden{opacity:0;pointer-events:none}
+  #exit{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:9px 14px;font-size:13px}
+  #status{font-size:12px;color:var(--muted);letter-spacing:.5px}
+
+  .flashmsg{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;
+    background:rgba(0,0,0,.82);border:1px solid var(--accent-dim);border-radius:12px;
+    padding:16px 26px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:15px;
+    opacity:0;transition:opacity .25s;pointer-events:none;text-align:center;
+  }
+  .flashmsg.show{opacity:1}
+  .camerr{color:#f0a0a0;font-size:13px;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif}
+</style>
+</head>
+<body>
+
+<!-- ===================== SETUP ===================== -->
+<div id="setup">
+  <div class="langswitch">
+    <button id="lru" class="on" onclick="setLang('ru')">RU</button>
+    <button id="len" onclick="setLang('en')">EN</button>
+  </div>
+  <div class="wrap">
+    <div class="brand">
+      <h1 data-t="title">Суфлёр</h1>
+      <span class="en" data-t="subtitle">Teleprompter</span>
+    </div>
+    <p class="lead" data-t="lead">Вставь текст, выбери режим и запусти. Работает на телефоне и на ноутбуке, без установки и без интернета после загрузки.</p>
+
+    <div class="field">
+      <div class="flabel"><span data-t="scriptLabel">Текст</span><span id="charcount">0</span></div>
+      <textarea id="scriptInput" data-ph="Вставь сюда свой текст…"></textarea>
+    </div>
+
+    <div class="field">
+      <div class="flabel"><span data-t="modeLabel">Режим</span></div>
+      <div class="modechoose">
+        <button class="mode active" id="modePlain" onclick="setMode('plain')">
+          <span class="dot"></span><h3 data-t="modePlainT">Только текст</h3>
+          <p data-t="modePlainD">Чёрный фон, крупный бегущий текст. Для ноутбука или второго экрана рядом с камерой.</p>
+        </button>
+        <button class="mode" id="modeCam" onclick="setMode('cam')">
+          <span class="dot"></span><h3 data-t="modeCamT">Текст поверх камеры</h3>
+          <p data-t="modeCamD">Включает фронтальную камеру, текст плывёт поверх твоего видео. Запиши экран телефона — получишь готовое видео.</p>
+        </button>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="slider-block">
+        <div class="top"><span data-t="speedLabel">Скорость</span><span class="val" id="speedVal">6</span></div>
+        <input type="range" id="speed" min="1" max="20" value="6">
+      </div>
+      <div class="slider-block">
+        <div class="top"><span data-t="sizeLabel">Размер шрифта</span><span class="val" id="sizeVal">48</span></div>
+        <input type="range" id="size" min="24" max="110" value="48">
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:22px">
+      <div class="flabel"><span data-t="optLabel">Настройки</span></div>
+      <div class="toggles">
+        <button class="toggle" id="tgMirror" onclick="tog('mirror',this)" data-t="tgMirror">Зеркалить текст</button>
+        <button class="toggle" id="tgFlip" onclick="tog('flip',this)" data-t="tgFlip">Перевернуть по вертикали</button>
+        <button class="toggle on" id="tgGuide" onclick="tog('guide',this)" data-t="tgGuide">Линия чтения</button>
+        <button class="toggle" id="tgDim" onclick="tog('dim',this)" data-t="tgDim">Затемнить камеру</button>
+      </div>
+    </div>
+
+    <button class="start" onclick="start()" data-t="startBtn">Запустить суфлёр</button>
+
+    <p class="hint" data-t="hint">
+      Управление: <kbd>Пробел</kbd> — старт/пауза · <kbd>↑</kbd><kbd>↓</kbd> — скорость · <kbd>←</kbd><kbd>→</kbd> — шрифт · <kbd>R</kbd> — в начало · <kbd>Esc</kbd> — выход. На телефоне: тап по экрану — старт/пауза, кнопки внизу.
+    </p>
+  </div>
+</div>
+
+<!-- ===================== STAGE ===================== -->
+<div id="stage">
+  <video id="video" autoplay playsinline muted></video>
+  <div id="scrim"></div>
+
+  <div id="scrollArea">
+    <div id="script"></div>
+  </div>
+  <div id="guide" class="on"></div>
+
+  <div id="tapzone"></div>
+
+  <div id="topbar">
+    <button id="exit" onclick="stop()" data-t="exitBtn">← Выход</button>
+    <span id="status"></span>
+  </div>
+
+  <div class="flashmsg" id="flash"></div>
+
+  <div id="bar">
+    <div class="stepper">
+      <button onclick="bumpSpeed(-1)">−</button>
+      <span class="lab"><span data-t="speedShort">Скор.</span> <span id="barSpeed">6</span></span>
+      <button onclick="bumpSpeed(1)">+</button>
+    </div>
+    <button class="cbtn primary wide" id="playBtn" onclick="togglePlay()">
+      <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <span id="playLabel" data-t="play">Старт</span>
+    </button>
+    <div class="stepper">
+      <button onclick="bumpSize(-4)">A−</button>
+      <span class="lab"><span id="barSize">48</span></span>
+      <button onclick="bumpSize(4)">A+</button>
+    </div>
+    <button class="cbtn" onclick="reset()" title="Reset">
+      <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7a5 5 0 11-5 5H5a7 7 0 107-7z"/></svg>
+      <span data-t="restart">В начало</span>
+    </button>
+    <button class="cbtn" onclick="quickToggle('mirror')" data-t="mirrorShort">Зеркало</button>
+  </div>
+</div>
+
+<script>
+/* ---------------- i18n ---------------- */
+const I18N = {
+  ru:{
+    title:"Суфлёр", subtitle:"Teleprompter",
+    lead:"Вставь текст, выбери режим и запусти. Работает на телефоне и на ноутбуке, без установки и без интернета после загрузки.",
+    scriptLabel:"Текст", modeLabel:"Режим",
+    modePlainT:"Только текст", modePlainD:"Чёрный фон, крупный бегущий текст. Для ноутбука или второго экрана рядом с камерой.",
+    modeCamT:"Текст поверх камеры", modeCamD:"Включает фронтальную камеру, текст плывёт поверх твоего видео. Запиши экран телефона — получишь готовое видео.",
+    speedLabel:"Скорость", sizeLabel:"Размер шрифта", optLabel:"Настройки",
+    tgMirror:"Зеркалить текст", tgFlip:"Перевернуть по вертикали", tgGuide:"Линия чтения", tgDim:"Затемнить камеру",
+    startBtn:"Запустить суфлёр",
+    hint:'Управление: <kbd>Пробел</kbd> — старт/пауза · <kbd>↑</kbd><kbd>↓</kbd> — скорость · <kbd>←</kbd><kbd>→</kbd> — шрифт · <kbd>R</kbd> — в начало · <kbd>Esc</kbd> — выход. На телефоне: тап по экрану — старт/пауза, кнопки внизу.',
+    exitBtn:"← Выход", play:"Старт", pause:"Пауза", restart:"В начало", mirrorShort:"Зеркало", speedShort:"Скор.",
+    ph:"Вставь сюда свой текст…",
+    camDenied:"Нет доступа к камере. Разреши доступ в браузере или выбери режим «Только текст».",
+    empty:"Сначала вставь текст.",
+    done:"Конец текста"
+  },
+  en:{
+    title:"Prompter", subtitle:"Teleprompter",
+    lead:"Paste your script, pick a mode, and go. Works on phone and laptop — no install, no internet needed after loading.",
+    scriptLabel:"Script", modeLabel:"Mode",
+    modePlainT:"Text only", modePlainD:"Black background, large scrolling text. For a laptop or a second screen next to the camera.",
+    modeCamT:"Text over camera", modeCamD:"Turns on the front camera; text scrolls over your video. Screen-record your phone to get the finished clip.",
+    speedLabel:"Speed", sizeLabel:"Font size", optLabel:"Options",
+    tgMirror:"Mirror text", tgFlip:"Flip vertically", tgGuide:"Reading line", tgDim:"Dim the camera",
+    startBtn:"Start prompter",
+    hint:'Controls: <kbd>Space</kbd> — play/pause · <kbd>↑</kbd><kbd>↓</kbd> — speed · <kbd>←</kbd><kbd>→</kbd> — font · <kbd>R</kbd> — restart · <kbd>Esc</kbd> — exit. On phone: tap the screen to play/pause, use the buttons below.',
+    exitBtn:"← Exit", play:"Play", pause:"Pause", restart:"Restart", mirrorShort:"Mirror", speedShort:"Spd",
+    ph:"Paste your script here…",
+    camDenied:"No camera access. Allow it in your browser, or use “Text only” mode.",
+    empty:"Paste some text first.",
+    done:"End of script"
+  }
+};
+let lang='ru';
+function setLang(l){
+  lang=l;
+  document.documentElement.lang=l;
+  document.getElementById('lru').classList.toggle('on',l==='ru');
+  document.getElementById('len').classList.toggle('on',l==='en');
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const k=el.getAttribute('data-t'); if(I18N[l][k]!==undefined) el.innerHTML=I18N[l][k];
+  });
+  const ta=document.getElementById('scriptInput');
+  ta.placeholder=I18N[l].ph;
+}
+
+/* ---------------- state ---------------- */
+const st={
+  mode:'plain', mirror:false, flip:false, guide:true, dim:false,
+  speed:6, size:48, playing:false, offset:0, stream:null, raf:null, lastT:0
+};
+
+const $=id=>document.getElementById(id);
+
+function setMode(m){
+  st.mode=m;
+  $('modePlain').classList.toggle('active',m==='plain');
+  $('modeCam').classList.toggle('active',m==='cam');
+}
+function tog(key,btn){ st[key]=!st[key]; btn.classList.toggle('on',st[key]); }
+
+/* sliders */
+$('speed').addEventListener('input',e=>{st.speed=+e.target.value;$('speedVal').textContent=st.speed;});
+$('size').addEventListener('input',e=>{st.size=+e.target.value;$('sizeVal').textContent=st.size;});
+$('scriptInput').addEventListener('input',e=>{$('charcount').textContent=e.target.value.length;});
+
+/* ---------------- start / stop ---------------- */
+async function start(){
+  const text=$('scriptInput').value.trim();
+  if(!text){ alert(I18N[lang].empty); return; }
+
+  const s=$('script');
+  s.textContent=text;
+  s.style.fontSize=st.size+'px';
+  applyTransforms();
+
+  $('scrim').classList.toggle('on', st.mode==='cam' && st.dim);
+  $('guide').classList.toggle('on', st.guide);
+  $('barSpeed').textContent=st.speed;
+  $('barSize').textContent=st.size;
+
+  $('setup').style.display='none';
+  $('stage').style.display='block';
+  st.offset=0; st.playing=false; applyOffset();
+  updatePlayBtn();
+
+  if(st.mode==='cam'){
+    $('video').style.display='block';
+    try{
+      st.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      $('video').srcObject=st.stream;
+    }catch(err){
+      flash(I18N[lang].camDenied,4000);
+    }
+  }else{
+    $('video').style.display='none';
+  }
+  document.addEventListener('keydown',onKey);
+  scheduleHideBar();
+}
+
+function stop(){
+  cancelAnimationFrame(st.raf); st.raf=null; st.playing=false;
+  if(st.stream){ st.stream.getTracks().forEach(t=>t.stop()); st.stream=null; }
+  $('video').srcObject=null;
+  $('stage').style.display='none';
+  $('setup').style.display='flex';
+  document.removeEventListener('keydown',onKey);
+}
+
+/* ---------------- scrolling engine ---------------- */
+function applyOffset(){ $('script').style.transform=composeTransform(-st.offset); }
+function composeTransform(y){
+  let t=`translateY(${y}px)`;
+  if(st.mirror) t+=' scaleX(-1)';
+  if(st.flip) t+=' scaleY(-1)';
+  return t;
+}
+function applyTransforms(){
+  const s=$('script');
+  s.classList.toggle('mirror',st.mirror);
+  s.classList.toggle('flip',st.flip);
+  applyOffset();
+}
+
+function loop(ts){
+  if(!st.lastT) st.lastT=ts;
+  const dt=(ts-st.lastT)/1000; st.lastT=ts;
+  // speed 1..20  -> px/sec
+  const pps=st.speed*22;
+  st.offset+=pps*dt;
+  applyOffset();
+  const maxScroll=$('script').scrollHeight - window.innerHeight*0.5;
+  if(st.offset>=maxScroll){
+    st.playing=false; updatePlayBtn(); flash(I18N[lang].done,1500);
+    cancelAnimationFrame(st.raf); st.raf=null; st.lastT=0; return;
+  }
+  st.raf=requestAnimationFrame(loop);
+}
+function play(){
+  if(st.playing) return;
+  st.playing=true; st.lastT=0;
+  st.raf=requestAnimationFrame(loop);
+  updatePlayBtn(); scheduleHideBar();
+}
+function pause(){
+  st.playing=false; cancelAnimationFrame(st.raf); st.raf=null; st.lastT=0;
+  updatePlayBtn(); showBar();
+}
+function togglePlay(){ st.playing?pause():play(); }
+function reset(){ st.offset=0; applyOffset(); }
+
+function updatePlayBtn(){
+  const playing=st.playing;
+  $('playIcon').innerHTML = playing
+    ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+  $('playLabel').textContent = playing ? I18N[lang].pause : I18N[lang].play;
+  $('status').textContent = playing ? '▶' : '⏸';
+}
+
+/* ---------------- live adjustments ---------------- */
+function bumpSpeed(d){
+  st.speed=Math.min(20,Math.max(1,st.speed+d));
+  $('barSpeed').textContent=st.speed; $('speedVal').textContent=st.speed; $('speed').value=st.speed;
+}
+function bumpSize(d){
+  st.size=Math.min(110,Math.max(24,st.size+d));
+  $('script').style.fontSize=st.size+'px';
+  $('barSize').textContent=st.size; $('sizeVal').textContent=st.size; $('size').value=st.size;
+}
+function quickToggle(key){
+  st[key]=!st[key]; applyTransforms();
+  $('tg'+key.charAt(0).toUpperCase()+key.slice(1)).classList.toggle('on',st[key]);
+}
+
+/* ---------------- flash message ---------------- */
+let flashTimer;
+function flash(msg,ms){
+  const f=$('flash'); f.textContent=msg; f.classList.add('show');
+  clearTimeout(flashTimer); flashTimer=setTimeout(()=>f.classList.remove('show'),ms||1500);
+}
+
+/* ---------------- auto-hide control bar ---------------- */
+let hideTimer;
+function scheduleHideBar(){
+  clearTimeout(hideTimer);
+  hideTimer=setTimeout(()=>{
+    if(st.playing){ $('bar').classList.add('hidden'); $('topbar').classList.add('hidden'); }
+  },2800);
+}
+function showBar(){
+  $('bar').classList.remove('hidden'); $('topbar').classList.remove('hidden');
+  scheduleHideBar();
+}
+
+/* tap zone: play/pause */
+$('tapzone').addEventListener('click',()=>{ showBar(); togglePlay(); });
+
+/* ---------------- keyboard ---------------- */
+function onKey(e){
+  switch(e.code){
+    case 'Space': e.preventDefault(); togglePlay(); break;
+    case 'ArrowUp': e.preventDefault(); bumpSpeed(1); break;
+    case 'ArrowDown': e.preventDefault(); bumpSpeed(-1); break;
+    case 'ArrowRight': e.preventDefault(); bumpSize(4); break;
+    case 'ArrowLeft': e.preventDefault(); bumpSize(-4); break;
+    case 'KeyR': reset(); break;
+    case 'KeyM': quickToggle('mirror'); break;
+    case 'Escape': stop(); break;
+  }
+  showBar();
+}
+
+/* wake bar on any move/touch over stage */
+['mousemove','touchstart'].forEach(ev=>$('stage').addEventListener(ev,showBar,{passive:true}));
+
+/* init */
+setLang('ru');
+</script>
+</body>
+</html>
